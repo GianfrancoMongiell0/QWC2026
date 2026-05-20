@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#0A0A0F"/>
+  <rect width="512" height="512" rx="80" fill="url(#grad)"/>
+  <defs>
+    <radialGradient id="grad" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#0D1A2E"/>
+      <stop offset="100%" stop-color="#0A0A0F"/>
+    </radialGradient>
+  </defs>
+  <!-- Ball -->
+  <circle cx="256" cy="220" r="110" fill="white" opacity="0.95"/>
+  <circle cx="256" cy="220" r="110" fill="none" stroke="#00FF87" stroke-width="6"/>
+  <!-- Pentagon pattern simplified -->
+  <polygon points="256,140 290,165 278,205 234,205 222,165" fill="#1A1A2E"/>
+  <polygon points="340,195 370,215 362,255 330,268 312,240" fill="#1A1A2E"/>
+  <polygon points="172,195 142,215 150,255 182,268 200,240" fill="#1A1A2E"/>
+  <!-- WC26 text -->
+  <text x="256" y="385" text-anchor="middle" font-family="Impact,sans-serif" font-size="72" font-weight="bold" fill="#00FF87" opacity="0.95">WC26</text>
+  <!-- Glow effect -->
+  <text x="256" y="385" text-anchor="middle" font-family="Impact,sans-serif" font-size="72" font-weight="bold" fill="none" stroke="#00FF87" stroke-width="1" opacity="0.4">WC26</text>
+</svg>
