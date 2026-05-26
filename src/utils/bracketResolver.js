@@ -180,7 +180,12 @@ function getWinnerFromPrediction(pred, homeResolved, awayResolved) {
 
   if      (ph > pa) return { winner: homeResolved, loser: awayResolved }
   else if (pa > ph) return { winner: awayResolved, loser: homeResolved }
-  else              return { winner: homeResolved, loser: awayResolved }
+  else {
+    // Empate → usar predicted_penalty_winner si existe
+    if (pred?.predicted_penalty_winner === 'home') return { winner: homeResolved, loser: awayResolved }
+    if (pred?.predicted_penalty_winner === 'away') return { winner: awayResolved, loser: homeResolved }
+    return { winner: homeResolved, loser: awayResolved }
+  }
 }
 
 function getWinnerFromResult(match, homeResolved, awayResolved) {
