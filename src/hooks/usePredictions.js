@@ -53,26 +53,17 @@ export function useMyPredictions(matchIds = [], leagueId = null) {
       predicted_penalty_winner:  resolvedPenWin,
     }
 
+    // Usar upsert con onConflict para evitar el error 409
+    // Funciona tanto para INSERT como UPDATE sin depender del estado local
     let data, error
-    if (existing) {
-      ;({ data, error } = await supabase
-        .from('predictions')
-        .update({
-          predicted_home:           Number(home),
-          predicted_away:           Number(away),
-          predicted_penalty_winner: resolvedPenWin,
-          updated_at:               new Date().toISOString(),
-        })
-        .eq('id', existing.id)
-        .select()
-        .single())
-    } else {
-      ;({ data, error } = await supabase
-        .from('predictions')
-        .insert(payload)
-        .select()
-        .single())
-    }
+    ;({ data, error } = await supabase
+      .from('predictions')
+      .upsert(payload, {
+        onConflict: 'user_id,match_id,league_id',
+        ignoreDuplicates: false,
+      })
+      .select()
+      .single())
 
     if (error) {
       console.error('upsertPrediction error:', error.message)
