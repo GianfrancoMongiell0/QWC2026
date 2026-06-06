@@ -17,35 +17,30 @@ const C = {
   faint:   '#333355',
 }
 
-// Avatar usando tabla HTML para centrado perfecto en html2canvas
+// Avatar: usa line-height = height para centrado perfecto sin flexbox
 function Avatar({ letter, isMe }) {
+  const size = 40
   return (
-    <table style={{
-      width: '40px', height: '40px', flexShrink: 0,
-      borderRadius: '50%',
-      background:    isMe ? 'rgba(0,255,135,0.18)' : C.darker,
-      border:        `2px solid ${isMe ? 'rgba(0,255,135,0.5)' : C.border}`,
-      borderCollapse: 'separate',
-      borderSpacing: 0,
-      overflow: 'hidden',
+    <div style={{
+      width:           `${size}px`,
+      height:          `${size}px`,
+      borderRadius:    '50%',
+      background:      isMe ? 'rgba(0,255,135,0.18)' : C.darker,
+      border:          `2px solid ${isMe ? 'rgba(0,255,135,0.5)' : C.border}`,
+      // Centrado vertical con line-height = height (más fiable que flex en html2canvas)
+      lineHeight:      `${size - 4}px`,   // -4 por los 2px de border × 2
+      textAlign:       'center',
+      fontFamily:      'Arial Black, Arial, sans-serif',
+      fontWeight:      900,
+      fontSize:        '17px',
+      color:           isMe ? C.green : C.silver,
+      // Forzar que no herede estilos que rompan el centrado
+      display:         'block',
+      overflow:        'hidden',
+      boxSizing:       'border-box',
     }}>
-      <tbody>
-        <tr>
-          <td style={{
-            textAlign:     'center',
-            verticalAlign: 'middle',
-            fontFamily:    'Arial Black, Arial, sans-serif',
-            fontWeight:    900,
-            fontSize:      '17px',
-            color:         isMe ? C.green : C.silver,
-            lineHeight:    1,
-            padding:       0,
-          }}>
-            {letter}
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      {letter}
+    </div>
   )
 }
 
@@ -69,12 +64,8 @@ export default function StandingsTable({ standings, leagueName = '' }) {
         logging:         false,
         imageTimeout:    0,
         onclone: (clonedDoc) => {
-          // Forzar box-sizing correcto en el clon
           const style = clonedDoc.createElement('style')
-          style.innerHTML = `
-            * { box-sizing: border-box !important; }
-            table { border-collapse: separate !important; }
-          `
+          style.innerHTML = `* { box-sizing: border-box !important; margin: 0 !important; }`
           clonedDoc.head.appendChild(style)
         },
       })
@@ -113,27 +104,25 @@ export default function StandingsTable({ standings, leagueName = '' }) {
 
   return (
     <div>
-      {/* ── Área capturada — usa tabla HTML para máxima compatibilidad ── */}
+      {/* Área capturada */}
       <div ref={tableRef} style={{ background: C.bg, padding: '20px', borderRadius: '16px' }}>
 
         {/* Header */}
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '14px', paddingBottom: '12px', borderBottom: `1px solid ${C.border}` }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '0' }}>
           <tbody>
             <tr>
-              <td style={{ fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '20px', fontWeight: 900, color: C.green, letterSpacing: '2px' }}>
+              <td style={{ fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '20px', fontWeight: 900, color: C.green, letterSpacing: '2px', paddingBottom: '12px' }}>
                 WC26 ⚽ {leagueName ? `· ${leagueName}` : ''}
               </td>
-              <td style={{ textAlign: 'right', fontFamily: 'Arial, sans-serif', fontSize: '12px', color: C.muted }}>
+              <td style={{ textAlign: 'right', fontFamily: 'Arial, sans-serif', fontSize: '12px', color: C.muted, paddingBottom: '12px' }}>
                 {new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
               </td>
             </tr>
           </tbody>
         </table>
-
-        {/* Separador */}
         <div style={{ height: '1px', background: C.border, marginBottom: '12px' }} />
 
-        {/* Filas de posiciones */}
+        {/* Filas */}
         {standings.map(({ users_profiles: p, points }, i) => {
           const isMe    = p?.id === user?.id
           const ptColor = i===0 ? C.gold : i===1 ? C.silver : i===2 ? C.purple : isMe ? C.green : C.text
@@ -142,49 +131,39 @@ export default function StandingsTable({ standings, leagueName = '' }) {
 
           return (
             <div key={p?.id} style={{
-              background:    isMe ? 'rgba(0,255,135,0.08)' : C.surface,
-              border:        `1px solid ${isMe ? 'rgba(0,255,135,0.35)' : C.border}`,
-              borderRadius:  '12px',
-              marginBottom:  '8px',
-              padding:       '0',
-              overflow:      'hidden',
+              background:   isMe ? 'rgba(0,255,135,0.08)' : C.surface,
+              border:       `1px solid ${isMe ? 'rgba(0,255,135,0.35)' : C.border}`,
+              borderRadius: '12px',
+              marginBottom: '8px',
             }}>
-              {/* Usar tabla para garantizar alineación correcta */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', padding: '0' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <tbody>
                   <tr>
                     {/* Posición */}
-                    <td style={{ width: '44px', textAlign: 'center', verticalAlign: 'middle', padding: '12px 8px 12px 12px' }}>
+                    <td style={{ width: '44px', textAlign: 'center', verticalAlign: 'middle', padding: '14px 6px 14px 14px' }}>
                       {i < 3
-                        ? <span style={{ fontSize: '22px', lineHeight: 1 }}>{MEDALS[i]}</span>
+                        ? <span style={{ fontSize: '20px' }}>{MEDALS[i]}</span>
                         : <span style={{ fontFamily: 'Arial, sans-serif', color: C.muted, fontSize: '15px', fontWeight: 700 }}>{i + 1}</span>
                       }
                     </td>
 
                     {/* Avatar */}
-                    <td style={{ width: '48px', verticalAlign: 'middle', padding: '12px 8px' }}>
+                    <td style={{ width: '52px', verticalAlign: 'middle', padding: '14px 8px' }}>
                       <Avatar letter={initial} isMe={isMe} />
                     </td>
 
-                    {/* Nombre y username */}
-                    <td style={{ verticalAlign: 'middle', padding: '12px 8px' }}>
-                      <div style={{
-                        fontFamily: 'Arial, sans-serif',
-                        fontWeight: 700,
-                        fontSize:   '15px',
-                        color:      isMe ? C.green : C.text,
-                        whiteSpace: 'nowrap',  // NO overflow hidden — texto completo
-                      }}>
-                        {name}
-                        {isMe && <span style={{ fontSize: '11px', marginLeft: '5px', opacity: 0.6 }}>(tú)</span>}
+                    {/* Nombre */}
+                    <td style={{ verticalAlign: 'middle', padding: '14px 8px' }}>
+                      <div style={{ fontFamily: 'Arial, sans-serif', fontWeight: 700, fontSize: '15px', color: isMe ? C.green : C.text, whiteSpace: 'nowrap' }}>
+                        {name}{isMe && <span style={{ fontSize: '11px', marginLeft: '5px', opacity: 0.6 }}>(tú)</span>}
                       </div>
-                      <div style={{ fontFamily: 'Arial, sans-serif', color: C.muted, fontSize: '12px', marginTop: '2px' }}>
+                      <div style={{ fontFamily: 'Arial, sans-serif', color: C.muted, fontSize: '12px', marginTop: '3px' }}>
                         @{p?.username}
                       </div>
                     </td>
 
                     {/* Puntos */}
-                    <td style={{ width: '60px', textAlign: 'right', verticalAlign: 'middle', padding: '12px 14px 12px 8px' }}>
+                    <td style={{ width: '56px', textAlign: 'right', verticalAlign: 'middle', padding: '14px 14px 14px 8px' }}>
                       <div style={{ fontFamily: 'Arial Black, Arial, sans-serif', fontWeight: 900, fontSize: '26px', color: ptColor, lineHeight: 1 }}>
                         {points}
                       </div>
