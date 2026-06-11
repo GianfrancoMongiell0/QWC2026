@@ -19,7 +19,7 @@ import {
 } from '../utils/bracketResolver'
 
 const GROUPS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
-const WC_DEADLINE = new Date('2026-06-11T14:30:00-05:00')
+const WC_DEADLINE = new Date('2026-06-11T17:00:00-05:00')
 
 const PHASE_LABELS = {
   round_of_32: 'Ronda de 32',
