@@ -112,8 +112,7 @@ export default function AdminPage() {
   const pending = matches.length - done
 
   const goToMyLeague = () => {
-    if (leagues?.length>0) navigate(`/liga/${leagues[0].leagues.id}`)
-    else navigate('/dashboard')
+    navigate('/dashboard')
   }
 
   return (
