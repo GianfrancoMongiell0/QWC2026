@@ -13,6 +13,16 @@ const PHASES = {
   quarterfinal:'Cuartos', semifinal:'Semis', third_place:'3er Lugar', final:'Final'
 }
 
+function isToday(datetimeStr) {
+  const matchDate = new Date(datetimeStr)
+  const now = new Date()
+  return (
+    matchDate.getDate()     === now.getDate()   &&
+    matchDate.getMonth()    === now.getMonth()  &&
+    matchDate.getFullYear() === now.getFullYear()
+  )
+}
+
 export default function AdminPage() {
   const navigate = useNavigate()
   const { matches, loading, refetch } = useAllMatches()
@@ -25,6 +35,7 @@ export default function AdminPage() {
   const [filter,   setFilter]   = useState('pending')
   const [phFilter, setPhFilter] = useState('all')
   const [search,   setSearch]   = useState('')
+  const [todayOnly, setTodayOnly] = useState(true)  // ← HOY activado por defecto
 
   // Separar partidos de grupos y eliminatorios
   const groupMatches   = useMemo(() => matches.filter(m => m.phase === 'group'), [matches])
@@ -61,7 +72,6 @@ export default function AdminPage() {
     const isDrawn    = Number(d.home) === Number(d.away)
     const isKnockout = m.phase !== 'group'
 
-    // Construir payload sin incluir penalty_winner en partidos de grupos
     const payload = {
       home_score: Number(d.home),
       away_score: Number(d.away),
@@ -69,7 +79,6 @@ export default function AdminPage() {
       updated_at: new Date().toISOString(),
     }
 
-    // Solo añadir penalty_winner en eliminatoria
     if (isKnockout) {
       payload.penalty_winner = (isDrawn && d.penalty_winner !== 'none')
         ? d.penalty_winner
@@ -86,16 +95,19 @@ export default function AdminPage() {
   const set = (key, val) => setEditData(p => ({ ...p, [key]: val }))
 
   const filtered = allResolved.filter(m => {
-    const fOk  = filter==='all' ? true : filter==='pending' ? m.home_score===null : m.home_score!==null
-    const phOk = phFilter==='all' || m.phase===phFilter
+    const fOk   = filter==='all' ? true : filter==='pending' ? m.home_score===null : m.home_score!==null
+    const phOk  = phFilter==='all' || m.phase===phFilter
+    const dayOk = !todayOnly || isToday(m.match_datetime)
     const name_home = m.home_resolved?.team ?? m.home_team
     const name_away = m.away_resolved?.team ?? m.away_team
     const sOk = !search
       || name_home.toLowerCase().includes(search.toLowerCase())
       || name_away.toLowerCase().includes(search.toLowerCase())
-    return fOk && phOk && sOk
+    return fOk && phOk && dayOk && sOk
   })
 
+  const todayCount   = allResolved.filter(m => isToday(m.match_datetime)).length
+  const todayPending = allResolved.filter(m => isToday(m.match_datetime) && m.home_score === null).length
   const done    = matches.filter(m => m.home_score!==null).length
   const pending = matches.length - done
 
@@ -154,7 +166,56 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {/* Filtros */}
+        {/* ── FILTRO HOY ── */}
+        <button
+          onClick={() => setTodayOnly(v => !v)}
+          style={{
+            width: '100%',
+            padding: '0.75rem 1rem',
+            borderRadius: '0.875rem',
+            border: `1px solid ${todayOnly ? 'rgba(255,215,0,0.5)' : '#1E1E2E'}`,
+            background: todayOnly ? 'rgba(255,215,0,0.08)' : '#12121A',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '0.75rem',
+            transition: 'all 0.15s',
+          }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: '1.1rem' }}>🔥</span>
+            <span style={{ fontFamily: 'DM Sans,sans-serif', fontWeight: 600, fontSize: '0.875rem', color: todayOnly ? '#FFD700' : '#8888AA' }}>
+              Solo partidos de hoy
+            </span>
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {todayPending > 0 && todayOnly && (
+              <span style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: '0.75rem', color: '#FF3366', background: 'rgba(255,51,102,0.12)', border: '1px solid rgba(255,51,102,0.3)', borderRadius: 9999, padding: '0.1rem 0.5rem' }}>
+                {todayPending} sin resultado
+              </span>
+            )}
+            <span style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: '0.75rem', color: todayOnly ? '#FFD700' : '#555570' }}>
+              {todayCount} partidos
+            </span>
+            <span style={{
+              width: 36, height: 20, borderRadius: 9999,
+              background: todayOnly ? 'rgba(255,215,0,0.3)' : '#1E1E2E',
+              border: `1px solid ${todayOnly ? '#FFD700' : '#333345'}`,
+              position: 'relative', transition: 'all 0.2s', flexShrink: 0,
+            }}>
+              <span style={{
+                position: 'absolute', top: 2,
+                left: todayOnly ? 18 : 2,
+                width: 14, height: 14, borderRadius: '50%',
+                background: todayOnly ? '#FFD700' : '#555570',
+                transition: 'left 0.2s',
+              }} />
+            </span>
+          </span>
+        </button>
+
+        {/* Filtros secundarios */}
         <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem', marginBottom:'1rem' }}>
           <div style={{ display:'flex', gap:'0.5rem', flexWrap:'wrap' }}>
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar equipo..."
@@ -174,6 +235,7 @@ export default function AdminPage() {
 
         <p style={{ fontFamily:'DM Sans,sans-serif', color:'#555570', fontSize:'0.75rem', marginBottom:'0.75rem' }}>
           {filtered.length} partido{filtered.length!==1?'s':''}
+          {todayOnly && <span style={{ color:'#FFD700', marginLeft:6 }}>· hoy</span>}
         </p>
 
         {/* Lista */}
@@ -181,7 +243,17 @@ export default function AdminPage() {
           <div style={{ display:'flex', justifyContent:'center', padding:'3rem' }}><Spinner /></div>
         ) : filtered.length===0 ? (
           <div className="glass-card" style={{ padding:'2.5rem', textAlign:'center' }}>
-            <p style={{ fontFamily:'DM Sans,sans-serif', color:'#8888AA' }}>No hay partidos con ese filtro.</p>
+            <span style={{ fontSize:'2rem', display:'block', marginBottom:8 }}>
+              {todayOnly ? '📅' : '🔍'}
+            </span>
+            <p style={{ fontFamily:'DM Sans,sans-serif', color:'#8888AA' }}>
+              {todayOnly ? 'No hay partidos hoy con ese filtro.' : 'No hay partidos con ese filtro.'}
+            </p>
+            {todayOnly && (
+              <button onClick={() => setTodayOnly(false)} style={{ marginTop:'0.75rem', fontFamily:'DM Sans,sans-serif', fontSize:'0.8rem', color:'#FFD700', background:'transparent', border:'1px solid rgba(255,215,0,0.3)', borderRadius:'0.625rem', padding:'0.4rem 0.875rem', cursor:'pointer' }}>
+                Ver todos los partidos
+              </button>
+            )}
           </div>
         ) : (
           <div style={{ display:'flex', flexDirection:'column', gap:'0.625rem' }}>
@@ -190,23 +262,23 @@ export default function AdminPage() {
               const d      = editData
               const fb     = feedback[m.id]
               const hasRes = m.home_score!==null
-              // Usar nombres resueltos para eliminatoria
               const homeName = m.home_resolved?.team ?? m.home_team
               const awayName = m.away_resolved?.team ?? m.away_team
               const homeFlag = m.home_resolved?.flag ?? m.home_team_flag ?? ''
               const awayFlag = m.away_resolved?.flag ?? m.away_team_flag ?? ''
-              const isSlot = homeName.match(/^[12W3]/)  // aún no resuelto
+              const isSlot = homeName.match(/^[12W3]/)
               const isGroup = m.phase === 'group'
+              const matchIsToday = isToday(m.match_datetime)
 
               return (
-                <div key={m.id} style={{ background:'#12121A', borderRadius:'1rem', padding:'0.875rem 1rem', border:`1px solid ${fb==='ok'?'rgba(0,255,135,0.4)':fb==='err'?'rgba(255,51,102,0.4)':isEdit?'rgba(255,215,0,0.4)':'#1E1E2E'}`, transition:'border-color 0.2s' }}>
+                <div key={m.id} style={{ background:'#12121A', borderRadius:'1rem', padding:'0.875rem 1rem', border:`1px solid ${fb==='ok'?'rgba(0,255,135,0.4)':fb==='err'?'rgba(255,51,102,0.4)':isEdit?'rgba(255,215,0,0.4)':matchIsToday && !hasRes?'rgba(255,215,0,0.2)':'#1E1E2E'}`, transition:'border-color 0.2s' }}>
                   {/* Meta */}
                   <div style={{ display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:4, marginBottom:'0.5rem' }}>
                     <span style={{ fontFamily:'DM Sans,sans-serif', color:'#555570', fontSize:'0.7rem' }}>
                       #{m.match_number} · {PHASES[m.phase]}{m.group_name?` · Grupo ${m.group_name}`:''}
                     </span>
-                    <span style={{ fontFamily:'DM Sans,sans-serif', color:'#555570', fontSize:'0.7rem' }}>
-                      {fmtDate(m.match_datetime)} · {fmtTime(m.match_datetime)}
+                    <span style={{ fontFamily:'DM Sans,sans-serif', color: matchIsToday ? '#FFD700' : '#555570', fontSize:'0.7rem', fontWeight: matchIsToday ? 600 : 400 }}>
+                      {matchIsToday ? '🔥 Hoy' : fmtDate(m.match_datetime)} · {fmtTime(m.match_datetime)}
                     </span>
                   </div>
 
@@ -250,14 +322,12 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  {/* Si el bracket no se ha resuelto aún, mostrar aviso */}
                   {!isGroup && isSlot && (
                     <p style={{ fontFamily:'DM Sans,sans-serif', color:'#555570', fontSize:'0.7rem', marginTop:6, textAlign:'center' }}>
                       ⏳ Se definirá cuando avance el bracket
                     </p>
                   )}
 
-                  {/* Selector de ganador en penales (solo en empate + eliminatoria + modo edición) */}
                   {isEdit && !isGroup && Number(d.home) === Number(d.away) && d.home !== '' && (
                     <div style={{ marginTop:'0.75rem', background:'rgba(139,92,246,0.08)', border:'1px solid rgba(139,92,246,0.3)', borderRadius:'0.75rem', padding:'0.75rem' }}>
                       <p style={{ fontFamily:'DM Sans,sans-serif', color:'#8B5CF6', fontSize:'0.75rem', fontWeight:600, marginBottom:'0.5rem' }}>
@@ -298,7 +368,6 @@ export default function AdminPage() {
                         </button>
                       </div>
                     ) : (
-                      // Solo permitir editar si los equipos ya están definidos o es partido de grupos
                       (!isSlot || isGroup) && (
                         <button onClick={()=>startEdit(m)} style={{ fontFamily:'DM Sans,sans-serif', fontSize:'0.75rem', color:'#555570', background:'transparent', border:'1px solid #1E1E2E', borderRadius:'0.625rem', padding:'0.35rem 0.75rem', cursor:'pointer', transition:'all 0.15s' }}
                           onMouseEnter={e=>{e.currentTarget.style.borderColor='#FFD700';e.currentTarget.style.color='#FFD700'}}
