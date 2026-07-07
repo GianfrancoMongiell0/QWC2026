@@ -1,6 +1,7 @@
 // ============================================================
-// BRACKET RESOLVER — WC 2026 v4
-// Fix: asignación de mejores terceros sin tabla de combinaciones
+// BRACKET RESOLVER — WC 2026 v5
+// slot_home/slot_away: slots originales (bracket del usuario)
+// home_team/away_team: equipos reales (los define el admin)
 // ============================================================
 
 export function calcGroupStandings(matches, getScore) {
@@ -22,8 +23,11 @@ export function calcGroupStandings(matches, getScore) {
   return Object.values(teams).sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.gf-a.gf||a.team.localeCompare(b.team))
 }
 
-// Los 8 slots de la Ronda de 32 que reciben mejores terceros, en orden de prioridad
-const THIRD_SLOTS = ['3ABCDF','3CDFGH','3CEFHI','3EHIJK','3BEFIJ','3AEHIJ','3EFGIJ','3DEIJL']
+// ¿Es un equipo real o un slot sin resolver?
+function isRealTeam(t) {
+  if (!t || t === 'TBD') return false
+  return !/^([123][A-L]$|3[A-L]{2,}|W\d+$|L\d+$)/.test(t)
+}
 
 function buildGroupSlots(GROUPS, getStandings) {
   const slots = {}
@@ -43,8 +47,6 @@ function buildGroupSlots(GROUPS, getStandings) {
     .sort((a,b) => b.pts-a.pts || b.gd-a.gd || b.gf-a.gf)
     .slice(0, 8)
 
-  // Asignar cada mejor tercero al slot 3X de su grupo
-  // El bracketResolver luego resuelve qué slot del partido le corresponde
   best8.forEach(t => {
     slots[`3${t.group}`] = { team:t.team, flag:t.flag }
     assignedTeams.add(t.team)
@@ -88,7 +90,6 @@ function resolveSlot(slotStr, groupSlots, knockoutMatches, koResults, usedTeams)
   }
 
   // Slot de mejor tercero: 3ABCDF
-  // Buscar cuál de esos grupos tiene un 3ro asignado y no ha sido usado
   if (/^3[A-L]{2,}/.test(slotStr)) {
     const groups = slotStr.slice(1).split('')
     const candidates = groups
@@ -102,7 +103,7 @@ function resolveSlot(slotStr, groupSlots, knockoutMatches, koResults, usedTeams)
       return { team:chosen.team, flag:chosen.flag }
     }
 
-    // Fallback: buscar cualquier mejor tercero disponible no usado
+    // Fallback: cualquier mejor tercero disponible no usado
     const allThirdKeys = Object.keys(groupSlots).filter(k => k.startsWith('3') && k.length === 2)
     for (const key of allThirdKeys) {
       const candidate = groupSlots[key]
@@ -157,13 +158,16 @@ function getWinnerFromResult(match, homeResolved, awayResolved) {
   return { winner:homeResolved, loser:awayResolved }
 }
 
+// ── BRACKET DEL USUARIO ─────────────────────────────────────
+// Siempre resuelve desde los SLOTS (slot_home/slot_away) con
+// las predicciones del usuario. Ignora los equipos reales.
 export function resolveKnockoutBracket(knockoutMatches, groupSlots, predictions) {
   const koResults = {}
   const usedTeams = new Set()
   const sorted    = [...knockoutMatches].sort((a,b) => a.match_number - b.match_number)
   const resolved  = sorted.map(m => {
-    const homeResolved = resolveSlot(m.home_team, groupSlots, sorted, koResults, usedTeams)
-    const awayResolved = resolveSlot(m.away_team, groupSlots, sorted, koResults, usedTeams)
+    const homeResolved = resolveSlot(m.slot_home ?? m.home_team, groupSlots, sorted, koResults, usedTeams)
+    const awayResolved = resolveSlot(m.slot_away ?? m.away_team, groupSlots, sorted, koResults, usedTeams)
     const pred   = predictions?.[m.id]
     const result = getWinnerFromPrediction(pred, homeResolved, awayResolved)
     if (result) koResults[m.id] = result
@@ -172,13 +176,30 @@ export function resolveKnockoutBracket(knockoutMatches, groupSlots, predictions)
   return resolved
 }
 
+// ── BRACKET REAL (ADMIN) ────────────────────────────────────
+// Si el admin ya definió el equipo real en home_team/away_team,
+// se usa ese. Si no, se resuelve desde el slot como fallback.
 export function resolveRealKnockoutBracket(knockoutMatches, groupSlots) {
   const koResults = {}
   const usedTeams = new Set()
   const sorted    = [...knockoutMatches].sort((a,b) => a.match_number - b.match_number)
   const resolved  = sorted.map(m => {
-    const homeResolved = resolveSlot(m.home_team, groupSlots, sorted, koResults, usedTeams)
-    const awayResolved = resolveSlot(m.away_team, groupSlots, sorted, koResults, usedTeams)
+    let homeResolved, awayResolved
+
+    if (isRealTeam(m.home_team)) {
+      homeResolved = { team: m.home_team, flag: m.home_team_flag ?? '' }
+      usedTeams.add(m.home_team)
+    } else {
+      homeResolved = resolveSlot(m.slot_home ?? m.home_team, groupSlots, sorted, koResults, usedTeams)
+    }
+
+    if (isRealTeam(m.away_team)) {
+      awayResolved = { team: m.away_team, flag: m.away_team_flag ?? '' }
+      usedTeams.add(m.away_team)
+    } else {
+      awayResolved = resolveSlot(m.slot_away ?? m.away_team, groupSlots, sorted, koResults, usedTeams)
+    }
+
     const result = getWinnerFromResult(m, homeResolved, awayResolved)
     if (result) koResults[m.id] = result
     return { ...m, home_resolved:homeResolved, away_resolved:awayResolved }
