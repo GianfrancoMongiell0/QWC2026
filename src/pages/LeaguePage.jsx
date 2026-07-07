@@ -12,6 +12,7 @@ import StandingsTable from '../components/standings/StandingsTable'
 import ShareLeagueButton from '../components/leagues/ShareLeagueButton'
 import Spinner from '../components/ui/Spinner'
 import Modal from '../components/ui/Modal'
+import KnockoutInfoModal from '../components/matches/KnockoutInfoModal'
 import {
   calcGroupStandings,
   resolveUserSlots,
@@ -175,6 +176,7 @@ export default function LeaguePage() {
   return (
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
+      <KnockoutInfoModal userId={user?.id} />
       <main style={{ maxWidth: 640, margin: '0 auto', padding: '1.5rem 1rem 6rem' }}>
 
         {/* Back */}
